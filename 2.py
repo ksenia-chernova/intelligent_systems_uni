@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from collections import deque
 
 # ============================================================
 #  Конфигурация лабиринтов
@@ -17,8 +16,8 @@ MAP1 = [
     [0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
     [0, 1, 1, 1, 1, 0, 1, 1, 1, 1],
     [0, 1, 1, 0, 0, 0, 1, 0, 0, 0],
-    [0, 0, 0, 1, 0, 1, 1, 1, 0, 1],
-    [1, 9, 1, 0, 0, 0, 0, 1, 9, 1],
+    [0, 0, 1, 0, 1, 1, 1, 0, 1, 0],
+    [1, 9, 1, 0, 0, 0, 0, 0, 9, 1],
 ]
 
 MAP2 = [
@@ -28,10 +27,10 @@ MAP2 = [
     [0, 1, 0, 0, 0, 0, 1, 0, 1, 0],
     [0, 1, 0, 0, 0, 0, 1, 1, 1, 0],
     [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
-    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0],
+    [0, 1, 0, 0, 0, 0, 1, 1, 1, 0],
     [0, 1, 1, 0, 0, 0, 1, 0, 1, 0],
-    [0, 1, 1, 1, 1, 1, 1, 0, 1, 0],
-    [0, 0, 0, 9, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 9, 0, 0, 0, 0, 0],
 ]
 
 CELL_SIZE = 50  # размер ячейки в пикселях
@@ -113,35 +112,35 @@ class MazeApp:
         self.canvas.pack(padx=10, pady=10)
 
     # --------------------------------------------------------
-    #  Поиск всех путей (BFS по всем возможным маршрутам)
+    #  Поиск всех путей (DFS по всем возможным маршрутам от всех входов)
     # --------------------------------------------------------
     def _find_all_paths(self):
         maze = self.current_map
         rows, cols = len(maze), len(maze[0])
 
-        # Найти вход (9) и выходы (7)
-        start = None
+        # 1. Найти ВСЕ входы (9) и выходы (7)
+        starts = []
         exits = []
         for r in range(rows):
             for c in range(cols):
                 if maze[r][c] == 9:
-                    start = (r, c)
+                    starts.append((r, c))
                 elif maze[r][c] == 7:
                     exits.append((r, c))
 
-        if start is None:
-            messagebox.showwarning("Ошибка", "Вход (9) не найден!")
+        if not starts:
+            messagebox.showwarning("Ошибка", "Входы (9) не найдены!")
             return
         if not exits:
             messagebox.showwarning("Ошибка", "Выходы (7) не найдены!")
             return
 
-        # DFS для поиска всех простых путей
         all_paths = []
-        visited = set()
+        exits_set = set(exits)  # Для быстрого поиска O(1)
 
-        def dfs(r, c, path):
-            if (r, c) in exits:
+        # 2. Вложенная функция DFS
+        def dfs(r, c, path, visited):
+            if (r, c) in exits_set:
                 all_paths.append(path[:])
                 return
             for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
@@ -150,12 +149,14 @@ class MazeApp:
                     if (nr, nc) not in visited and maze[nr][nc] != 1:
                         visited.add((nr, nc))
                         path.append((nr, nc))
-                        dfs(nr, nc, path)
+                        dfs(nr, nc, path, visited)
                         path.pop()
                         visited.remove((nr, nc))
 
-        visited.add(start)
-        dfs(start[0], start[1], [start])
+        # 3. Запускаем поиск от каждого входа отдельно
+        for start in starts:
+            visited = {start}
+            dfs(start[0], start[1], [start], visited)
 
         self.paths = all_paths
         if all_paths:
